@@ -1,7 +1,19 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/rodrigoenzohernandez/transactions-processor/internal/utils"
+)
 
 func main() {
-	fmt.Println("Transactions-proccesor initialized")
+
+	records := utils.GetRecordsFromCSV("files/txns.csv")
+
+	report := utils.GenerateReport(records)
+
+	emailContent := utils.GenerateEmailContent(report)
+
+	fmt.Println(emailContent)
+
 }
