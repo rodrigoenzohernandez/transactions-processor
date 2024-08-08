@@ -8,9 +8,9 @@
     <p> Total balance is {{.TotalBalance}} </p>
 
     {{range $month, $txn := .TransactionsByMonth}}
-    <p>Number of transactions in {{$month}} is {{$txn.Count}}</p>
-    <p>Average debit amount in {{$month}} is {{$txn.AvgDebit}}</p>
-    <p>Average credit amount in {{$month}} is {{$txn.AvgCredit}} </p>
+    <p>Number of transactions in {{$txn.Name}} is {{$txn.Count}}</p>
+    <p>Average debit amount in {{$txn.Name}} is -{{$txn.AvgDebit}}</p>
+    <p>Average credit amount in {{$txn.Name}} is {{$txn.AvgCredit}} </p>
     {{end}}
 
 </body>

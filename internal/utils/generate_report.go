@@ -21,7 +21,7 @@ func GenerateReport(records [][]string) types.Report {
 
 	report := types.Report{
 		TotalBalance:        0,
-		TransactionsByMonth: make(map[string]types.MonthBalance),
+		TransactionsByMonth: make(types.TransactionsByMonth),
 	}
 
 	for _, record := range records {
@@ -30,8 +30,9 @@ func GenerateReport(records [][]string) types.Report {
 		sign := string(record[2][0])
 		monthNumber, _ := strconv.Atoi(s.Split(date, "/")[0])
 		monthName := time.Month(monthNumber).String()
-		monthBalance := report.TransactionsByMonth[monthName]
+		monthBalance := report.TransactionsByMonth[monthNumber]
 		monthBalance.Count++
+		monthBalance.Name = monthName
 
 		if sign == "+" {
 			creditBalance += amount
@@ -41,7 +42,7 @@ func GenerateReport(records [][]string) types.Report {
 			monthBalance.AvgDebit += amount
 		}
 
-		report.TransactionsByMonth[monthName] = monthBalance
+		report.TransactionsByMonth[monthNumber] = monthBalance
 
 	}
 	report.TotalBalance = creditBalance - debitBalance
