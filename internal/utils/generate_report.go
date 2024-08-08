@@ -45,13 +45,14 @@ func GenerateReport(records [][]string) types.Report {
 		report.TransactionsByMonth[monthNumber] = monthBalance
 
 	}
-	report.TotalBalance = creditBalance - debitBalance
+
+	report.TotalBalance = ToFixed(creditBalance - debitBalance)
 
 	for month, balance := range report.TransactionsByMonth {
 		if balance.Count > 0 {
 
-			balance.AvgCredit = balance.AvgCredit / float64(balance.Count)
-			balance.AvgDebit = balance.AvgDebit / float64(balance.Count)
+			balance.AvgCredit = ToFixed(balance.AvgCredit / float64(balance.Count))
+			balance.AvgDebit = ToFixed(balance.AvgDebit / float64(balance.Count))
 			report.TransactionsByMonth[month] = balance
 		}
 	}
