@@ -8,7 +8,11 @@ import (
 
 func main() {
 
-	records := utils.GetRecordsFromCSV("files/txns.csv")
+	buffer := utils.GetBufferFromFile("files/txns.csv")
+
+	defer buffer.Close()
+
+	records := utils.GetRecordsFromBuffer(buffer)
 
 	report := utils.GenerateReport(records)
 
