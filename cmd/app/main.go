@@ -8,15 +8,24 @@ import (
 
 func main() {
 
-	buffer := utils.GetBufferFromFile("files/txns.csv")
-
+	buffer, err := utils.GetBufferFromFile("files/txns.csv")
+	if err != nil {
+		return
+	}
 	defer buffer.Close()
 
-	records := utils.GetRecordsFromBuffer(buffer)
+	records, err := utils.GetRecordsFromBuffer(buffer)
+	if err != nil {
+		return
+	}
 
 	report := utils.GenerateReport(records)
 
-	emailContent := utils.GenerateEmailContent(report)
+	emailContent, err := utils.GenerateEmailContent(report)
+
+	if err != nil {
+		return
+	}
 
 	fmt.Println(emailContent)
 
