@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/aws/aws-cdk-go/awscdk/v2"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awslambda"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awslambdaeventsources"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awss3"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awss3notifications"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awssqs"
@@ -39,7 +40,7 @@ func NewInfrastructureStack(scope constructs.Construct, id string, props *Infras
 		Code:         awslambda.Code_FromAsset(jsii.String("../internal/lambda/files-processor"), nil),
 	})
 
-	awslambda.NewFunction(stack, jsii.String("email-sender"), &awslambda.FunctionProps{
+	emailSenderLambda := awslambda.NewFunction(stack, jsii.String("email-sender"), &awslambda.FunctionProps{
 		FunctionName: jsii.String("email-sender"),
 		Runtime:      awslambda.Runtime_PROVIDED_AL2(),
 		Handler:      jsii.String("bootstrap"),
@@ -54,6 +55,10 @@ func NewInfrastructureStack(scope constructs.Construct, id string, props *Infras
 	// triggers
 
 	transactionsBucket.AddEventNotification(awss3.EventType_OBJECT_CREATED, awss3notifications.NewLambdaDestination(filesProcessorLambda))
+
+	emailSenderLambda.AddEventSource(awslambdaeventsources.NewSqsEventSource(reportsQueue, &awslambdaeventsources.SqsEventSourceProps{
+		BatchSize: jsii.Number(1),
+	}))
 
 	return stack
 }
