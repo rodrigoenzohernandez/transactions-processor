@@ -4,13 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/sqs"
+	s3_services "github.com/rodrigoenzohernandez/transactions-processor/internal/services/s3"
+	sqs_services "github.com/rodrigoenzohernandez/transactions-processor/internal/services/sqs"
+
 	"github.com/rodrigoenzohernandez/transactions-processor/internal/utils"
 	"github.com/rodrigoenzohernandez/transactions-processor/internal/utils/logger"
 )
@@ -39,62 +42,52 @@ type Object struct {
 var log = logger.GetLogger("files_processor_lambda")
 
 func handler(ctx context.Context, event events.S3Event) {
+	// Get bucket and key from the event
 	eventJson, _ := json.Marshal(event)
 	var data Event
 	json.Unmarshal(eventJson, &data)
 	bucket := data.Records[0].S3.Bucket.Name
 	key := data.Records[0].S3.Object.Key
 
-	log.Info(fmt.Sprintf("An object was uploaded to bucket %s with key %s", bucket, key))
+	if !strings.HasSuffix(key, ".csv") {
+		log.Error(fmt.Sprintf("File %s is not valid. It's not a .csv file", key))
+		return
+	}
 
+	log.Info(fmt.Sprintf("Process started: Object %s uploaded to the bucket", key))
+
+	// Define session
 	session := session.Must(session.NewSession())
 
+	// Define clients
 	s3Client := s3.New(session)
-
-	// create service to get object
-
-	object, err := s3Client.GetObject(&s3.GetObjectInput{
-		Bucket: aws.String(bucket),
-		Key:    aws.String(key),
-	})
-	if err != nil {
-		log.Error(fmt.Sprintf("Unable to download object %q, %v", key, err))
-		return
-	}
-	defer object.Body.Close()
-
-	records := utils.GetRecordsFromBuffer(object.Body)
-
-	report, _ := json.Marshal(utils.GenerateReport(records))
-
 	sqsClient := sqs.New(session)
 
-	// create service GetQueueUrl
-	resultURL, err := sqsClient.GetQueueUrl(&sqs.GetQueueUrlInput{
-		QueueName: aws.String("reports_queue"),
-	})
+	object, err := s3_services.GetObject(bucket, key, s3Client)
 	if err != nil {
-		log.Error(fmt.Sprintf("Failed to get queue URL: %v", err))
 		return
 	}
 
-	queueURL := *resultURL.QueueUrl
+	defer object.Body.Close()
 
-	log.Info(fmt.Sprintf("Records: %s", records))
-
-	// create service SendMessage
-
-	resultSend, err := sqsClient.SendMessage(&sqs.SendMessageInput{
-		MessageBody: aws.String(string(report)),
-		QueueUrl:    aws.String(queueURL),
-	})
+	records, err := utils.GetRecordsFromBuffer(object.Body)
 	if err != nil {
-		log.Error(fmt.Sprintf("Failed to send message to SQS queue %v", err))
-
 		return
 	}
 
-	log.Info(fmt.Sprintf("Successfully sent message to SQS queue with ID: %s\n", *resultSend.MessageId))
+	report, err := json.Marshal(utils.GenerateReport(records))
+	if err != nil {
+		log.Debug(fmt.Sprintf("Issue with the report: %s", err))
+		return
+	}
+	log.Debug(fmt.Sprintf("Report: %s", report))
+
+	queueUrl, err := sqs_services.GetQueueURL("reports_queue", sqsClient)
+	if err != nil {
+		return
+	}
+
+	sqs_services.SendMessage(report, queueUrl, sqsClient)
 
 }
 
