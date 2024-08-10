@@ -112,6 +112,16 @@ func NewInfrastructureStack(scope constructs.Construct, id string, props *Infras
 		Resources: jsii.Strings(fmt.Sprintf("arn:aws:ssm:%s:%s:parameter/smtp/notification/email", *stack.Region(), *stack.Account())),
 	}))
 
+	emailSenderLambda.AddToRolePolicy(awsiam.NewPolicyStatement(&awsiam.PolicyStatementProps{
+		Actions: jsii.Strings("ssm:GetParameter"),
+		Resources: jsii.Strings(
+			fmt.Sprintf("arn:aws:ssm:%s:%s:parameter/smtp/provider/public_key", *stack.Region(), *stack.Account()),
+			fmt.Sprintf("arn:aws:ssm:%s:%s:parameter/smtp/provider/private_key", *stack.Region(), *stack.Account()),
+			fmt.Sprintf("arn:aws:ssm:%s:%s:parameter/smtp/provider/sender", *stack.Region(), *stack.Account()),
+			fmt.Sprintf("arn:aws:ssm:%s:%s:parameter/smtp/notification/email", *stack.Region(), *stack.Account()),
+		),
+	}))
+
 	// triggers
 
 	transactionsBucket.AddEventNotification(awss3.EventType_OBJECT_CREATED, awss3notifications.NewLambdaDestination(filesProcessorLambda))
