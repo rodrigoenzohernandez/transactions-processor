@@ -88,7 +88,7 @@
         <div class="transactions">
             <p class="month-name">{{$txn.Name}}</p>
             <p>Number of transactions: {{$txn.Count}}</p>
-            <p>Average debit amount: <span class="negative">-{{$txn.AvgDebit}}</span></p>
+            <p>Average debit amount: <span class="negative">{{if ne (printf "%.2f" $txn.AvgDebit) "0.00"}}-{{end}}{{$txn.AvgDebit}}</span></p>
             <p>Average credit amount: <span class="positive">{{$txn.AvgCredit}}</span></p>
         </div>
         {{end}}
