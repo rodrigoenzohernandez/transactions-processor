@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
-
+	"github.com/rodrigoenzohernandez/transactions-processor/internal/services"
+	ssm_services "github.com/rodrigoenzohernandez/transactions-processor/internal/services/ssm"
 	"github.com/rodrigoenzohernandez/transactions-processor/internal/utils"
 )
 
@@ -27,6 +27,8 @@ func main() {
 		return
 	}
 
-	fmt.Println(emailContent)
+	notificationEmail, _ := ssm_services.GetSSMParameter("/smtp/provider/sender")
+
+	services.SendEmail(notificationEmail, "Summary of your transactions", emailContent)
 
 }
