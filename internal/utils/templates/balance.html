@@ -5,7 +5,7 @@
 <head>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: "__f37hybrid_1e57a6", "__f37hybrid_Fallback_1e57a6", Arial, sans-serif;
             margin: 0;
             padding: 0;
         }
@@ -25,8 +25,31 @@
             padding: 20px;
         }
 
+        .total-balance {
+            font-size: 24px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .total-balance span {
+            font-weight: normal;
+        }
+
+        .separator {
+            border-bottom: 2px solid #ccc;
+            margin: 20px 0;
+        }
+
         .transactions {
             margin: 10px 0;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ccc;
+        }
+
+        .month-name {
+            font-size: 20px;
+            font-weight: bold;
         }
 
         p {
@@ -34,11 +57,11 @@
         }
 
         .negative {
-            color: red;
+            color: black;
         }
 
         .positive {
-            color: green;
+            color: black;
         }
 
         .section3 {
@@ -56,10 +79,14 @@
             class="logo">
     </div>
     <div class="section2">
-        <p>Total balance: {{.TotalBalance}}</p>
+        <div class="total-balance">
+            <span>Total balance: </span>
+            <span>{{.TotalBalance}}</span>
+        </div>
+        <div class="separator"></div>
         {{range $month, $txn := .TransactionsByMonth}}
         <div class="transactions">
-            <p>Month: {{$txn.Name}}</p>
+            <p class="month-name">{{$txn.Name}}</p>
             <p>Number of transactions: {{$txn.Count}}</p>
             <p>Average debit amount: <span class="negative">-{{$txn.AvgDebit}}</span></p>
             <p>Average credit amount: <span class="positive">{{$txn.AvgCredit}}</span></p>
