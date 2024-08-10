@@ -1,12 +1,15 @@
 package main
 
 import (
+	"os"
+
 	"github.com/aws/aws-cdk-go/awscdk/v2"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awslambda"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awslambdaeventsources"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awss3"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awss3notifications"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awssqs"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awsssm"
 	"github.com/aws/constructs-go/constructs/v10"
 	"github.com/aws/jsii-runtime-go"
 )
@@ -45,6 +48,27 @@ func NewInfrastructureStack(scope constructs.Construct, id string, props *Infras
 		Runtime:      awslambda.Runtime_PROVIDED_AL2(),
 		Handler:      jsii.String("bootstrap"),
 		Code:         awslambda.Code_FromAsset(jsii.String("../internal/lambda/email-sender"), nil),
+	})
+
+	// SSM Parameters
+	awsssm.NewStringParameter(stack, jsii.String("SMTP_PROVIDER_PUBLIC_KEY"), &awsssm.StringParameterProps{
+		ParameterName: jsii.String("/smtp/provider/public_key"),
+		StringValue:   jsii.String(os.Getenv("SMTP_PROVIDER_PUBLIC_KEY")),
+	})
+
+	awsssm.NewStringParameter(stack, jsii.String("SMTP_PROVIDER_PRIVATE_KEY"), &awsssm.StringParameterProps{
+		ParameterName: jsii.String("/smtp/provider/private_key"),
+		StringValue:   jsii.String(os.Getenv("SMTP_PROVIDER_PRIVATE_KEY")),
+	})
+
+	awsssm.NewStringParameter(stack, jsii.String("SMTP_EMAIL_SENDER"), &awsssm.StringParameterProps{
+		ParameterName: jsii.String("/smtp/email/sender"),
+		StringValue:   jsii.String(os.Getenv("SMTP_EMAIL_SENDER")),
+	})
+
+	awsssm.NewStringParameter(stack, jsii.String("SMTP_EMAIL_RECEIVER"), &awsssm.StringParameterProps{
+		ParameterName: jsii.String("/smtp/email/receiver"),
+		StringValue:   jsii.String(os.Getenv("SMTP_EMAIL_RECEIVER")),
 	})
 
 	// permissions
