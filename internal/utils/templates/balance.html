@@ -2,17 +2,104 @@
     PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html>
 
+<head>
+    <style>
+        body {
+            font-family: "__f37hybrid_1e57a6", "__f37hybrid_Fallback_1e57a6", Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        .section1 {
+            background-color: rgb(0, 58, 64);
+            padding: 20px;
+            text-align: left;
+        }
+
+        .logo {
+            width: 200px;
+        }
+
+        .section2 {
+            background-color: #e5e7eb;
+            padding: 20px;
+        }
+
+        .total-balance {
+            font-size: 24px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .total-balance span {
+            font-weight: normal;
+        }
+
+        .separator {
+            border-bottom: 2px solid #ccc;
+            margin: 20px 0;
+        }
+
+        .transactions {
+            margin: 10px 0;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ccc;
+        }
+
+        .month-name {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        p {
+            margin: 5px 0;
+        }
+
+        .negative {
+            color: black;
+        }
+
+        .positive {
+            color: black;
+        }
+
+        .section3 {
+            background-color: rgb(0, 58, 64);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+    </style>
 </head>
 
 <body>
-    <p> Total balance is {{.TotalBalance}} </p>
-
-    {{range $month, $txn := .TransactionsByMonth}}
-    <p>Number of transactions in {{$txn.Name}} is {{$txn.Count}}</p>
-    <p>Average debit amount in {{$txn.Name}} is -{{$txn.AvgDebit}}</p>
-    <p>Average credit amount in {{$txn.Name}} is {{$txn.AvgCredit}} </p>
-    {{end}}
-
+    <div class="section1">
+        <img src="https://drive.google.com/uc?export=view&id=1_LSs3ks0nCuW9w8g6vFCFdauocfS322y" alt="Company Logo"
+            class="logo">
+    </div>
+    <div class="section2">
+        <div class="total-balance">
+            <span>Total balance: </span>
+            <span>{{.TotalBalance}}</span>
+        </div>
+        <div class="separator"></div>
+        {{range $month, $txn := .TransactionsByMonth}}
+        <div class="transactions">
+            <p class="month-name">{{$txn.Name}}</p>
+            <p>Number of transactions: {{$txn.Count}}</p>
+            <p>Average debit amount: <span class="negative">-{{$txn.AvgDebit}}</span></p>
+            <p>Average credit amount: <span class="positive">{{$txn.AvgCredit}}</span></p>
+        </div>
+        {{end}}
+    </div>
+    <div class="section3">
+        <p>Producto ofrecido por SAVVI Financieros, S.A. de C.V.</p>
+        <p>Savvi Financieros, S.A. de C.V., Sociedad Financiera Popular es una entidad financiera autorizada y
+            supervisada por la Comisión Nacional Bancaria y de Valores y demás autoridades financieras, bajo la Ley de
+            Ahorro y Crédito Popular. Savvi Financieros, S.A. de C.V., Sociedad Financiera Popular, Calle Sevilla,
+            Número Exterior 40, Piso 7, Colonia Juárez, Alcaldía Cuauhtémoc, C.P. 06600, Ciudad de México.</p>
+    </div>
 </body>
 
 </html>
