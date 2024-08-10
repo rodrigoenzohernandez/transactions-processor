@@ -10,7 +10,7 @@ import (
 
 // Receives a report and creates a string email content using the html template called balance
 func GenerateEmailContent(report types.Report) (string, error) {
-	tmpl, err := template.ParseFiles("internal/templates/balance.html")
+	tmpl, err := template.ParseFS(Templates, "templates/balance.html")
 	if err != nil {
 		log.Error(fmt.Sprintf("Error parsing template %v", err))
 		return "", err
