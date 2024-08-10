@@ -11,13 +11,13 @@ diff:
 	cd infrastructure && cdk diff
 
 run-dev:
-	aws s3 cp files/txns.csv s3://infrastructurestack-transactionsbucket77a27bfc-dvlfk1nzc1eg/
+	aws s3 cp files/txns.csv s3://infrastructurestack-transactionsbucket77a27bfc-mpzvy34bxssi/
 
 update-email:
 	@if [ -z "$(email)" ]; then \
 		echo "Usage: make update-email email=<new-email@example.com>"; \
 		exit 1; \
 	fi
-	curl -X PUT https://cy1gv0vgh8.execute-api.us-east-2.amazonaws.com/develop/param \
+	curl -X PUT https://41slfl71z8.execute-api.us-east-2.amazonaws.com/develop/param \
 		-H "Content-Type: application/json" \
 		-d '{"notificationEmail": "$(email)"}'
