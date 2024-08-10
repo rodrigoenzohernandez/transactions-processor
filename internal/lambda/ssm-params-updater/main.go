@@ -4,48 +4,41 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ssm"
+	ssm_services "github.com/rodrigoenzohernandez/transactions-processor/internal/services/ssm"
+	"github.com/rodrigoenzohernandez/transactions-processor/internal/utils/logger"
 )
 
 type RequestBody struct {
 	NotificationEmail string `json:"notificationEmail"`
 }
 
+var log = logger.GetLogger("ssm-params-updater")
+
 func handler(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	var body RequestBody
 	err := json.Unmarshal([]byte(request.Body), &body)
 	if err != nil {
-		log.Printf("Error parsing request body: %v", err)
+		data := fmt.Sprintf("Invalid request body: %v", err)
+		log.Error(data)
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusBadRequest,
-			Body:       fmt.Sprintf("Invalid request body: %v", err),
+			Body:       data,
 		}, nil
 	}
 
-	session := session.Must(session.NewSession())
-	ssmClient := ssm.New(session)
+	_, err = ssm_services.PutSSMParameter("/smtp/notification/email", body.NotificationEmail, "String")
 
-	paramName := "/smtp/notification/email"
-	paramValue := body.NotificationEmail
-
-	_, err = ssmClient.PutParameter(&ssm.PutParameterInput{
-		Name:      aws.String(paramName),
-		Value:     aws.String(paramValue),
-		Overwrite: aws.Bool(true),
-		Type:      aws.String("String"),
-	})
 	if err != nil {
-		log.Printf("Error updating SSM parameter: %v", err)
+		data := fmt.Sprintf("Error updating SSM parameter: %v", err)
+		log.Error(data)
+
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusInternalServerError,
-			Body:       fmt.Sprintf("Failed to update parameter: %v", err),
+			Body:       data,
 		}, nil
 	}
 
