@@ -1,9 +1,19 @@
 package main
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/aws/aws-cdk-go/awscdk/v2"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awsapigateway"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awsiam"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awslambda"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awslambdaeventsources"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awss3"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awss3notifications"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awssqs"
-	// "github.com/aws/aws-cdk-go/awscdk/v2/awssqs"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awsssm"
+
 	"github.com/aws/constructs-go/constructs/v10"
 	"github.com/aws/jsii-runtime-go"
 )
@@ -13,18 +23,112 @@ type InfrastructureStackProps struct {
 }
 
 func NewInfrastructureStack(scope constructs.Construct, id string, props *InfrastructureStackProps) awscdk.Stack {
+
+	var env string
+	env = os.Getenv("ENV")
+	if env == "" {
+		env = "develop"
+	}
+
 	var sprops awscdk.StackProps
 	if props != nil {
 		sprops = props.StackProps
 	}
 	stack := awscdk.NewStack(scope, &id, &sprops)
 
-	// The code that defines your stack goes here
+	// resources creation
 
-	// example resource
-	awssqs.NewQueue(stack, jsii.String("InfrastructureQueue"), &awssqs.QueueProps{
+	reportsQueue := awssqs.NewQueue(stack, jsii.String("reports_queue"), &awssqs.QueueProps{
+		QueueName:         jsii.String("reports_queue"),
 		VisibilityTimeout: awscdk.Duration_Seconds(jsii.Number(300)),
 	})
+
+	transactionsBucket := awss3.NewBucket(stack, jsii.String("transactions-bucket"), &awss3.BucketProps{
+		Versioned: jsii.Bool(true),
+	})
+
+	filesProcessorLambda := awslambda.NewFunction(stack, jsii.String("files-processor"), &awslambda.FunctionProps{
+		FunctionName: jsii.String("files-processor"),
+		Runtime:      awslambda.Runtime_PROVIDED_AL2(),
+		Handler:      jsii.String("bootstrap"),
+		Code:         awslambda.Code_FromAsset(jsii.String("../internal/lambda/files-processor"), nil),
+	})
+
+	emailSenderLambda := awslambda.NewFunction(stack, jsii.String("email-sender"), &awslambda.FunctionProps{
+		FunctionName: jsii.String("email-sender"),
+		Runtime:      awslambda.Runtime_PROVIDED_AL2(),
+		Handler:      jsii.String("bootstrap"),
+		Code:         awslambda.Code_FromAsset(jsii.String("../internal/lambda/email-sender"), nil),
+	})
+
+	paramUpdaterLambda := awslambda.NewFunction(stack, jsii.String("ssm-params-updater"), &awslambda.FunctionProps{
+		FunctionName: jsii.String("ssm-params-updater"),
+		Runtime:      awslambda.Runtime_PROVIDED_AL2(),
+		Handler:      jsii.String("bootstrap"),
+		Code:         awslambda.Code_FromAsset(jsii.String("../internal/lambda/ssm-params-updater"), nil),
+	})
+
+	ssmParamsRestApi := awsapigateway.NewRestApi(stack, jsii.String("ssm-params-api"), &awsapigateway.RestApiProps{
+		RestApiName: jsii.String("ssmParamsApi"),
+		Description: jsii.String("API to update SSM parameters"),
+		DeployOptions: &awsapigateway.StageOptions{
+			StageName: jsii.String(env),
+		},
+	})
+
+	updateResource := ssmParamsRestApi.Root().AddResource(jsii.String("param"), nil)
+	updateResource.AddMethod(jsii.String("PUT"), awsapigateway.NewLambdaIntegration(paramUpdaterLambda, nil), &awsapigateway.MethodOptions{
+		AuthorizationType: awsapigateway.AuthorizationType_NONE,
+	})
+
+	// SSM Parameters
+	awsssm.NewStringParameter(stack, jsii.String("SMTP_PROVIDER_PUBLIC_KEY"), &awsssm.StringParameterProps{
+		ParameterName: jsii.String("/smtp/provider/public_key"),
+		StringValue:   jsii.String(os.Getenv("SMTP_PROVIDER_PUBLIC_KEY")),
+	})
+
+	awsssm.NewStringParameter(stack, jsii.String("SMTP_PROVIDER_PRIVATE_KEY"), &awsssm.StringParameterProps{
+		ParameterName: jsii.String("/smtp/provider/private_key"),
+		StringValue:   jsii.String(os.Getenv("SMTP_PROVIDER_PRIVATE_KEY")),
+	})
+
+	awsssm.NewStringParameter(stack, jsii.String("SMTP_PROVIDER_SENDER"), &awsssm.StringParameterProps{
+		ParameterName: jsii.String("/smtp/provider/sender"),
+		StringValue:   jsii.String(os.Getenv("SMTP_PROVIDER_SENDER")),
+	})
+
+	awsssm.NewStringParameter(stack, jsii.String("SMTP_NOTIFICATION_EMAIL"), &awsssm.StringParameterProps{
+		ParameterName: jsii.String("/smtp/notification/email"),
+		StringValue:   jsii.String(os.Getenv("SMTP_NOTIFICATION_EMAIL")),
+	})
+
+	// permissions
+
+	transactionsBucket.GrantRead(filesProcessorLambda, nil)
+	reportsQueue.GrantSendMessages(filesProcessorLambda)
+
+	paramUpdaterLambda.AddToRolePolicy(awsiam.NewPolicyStatement(&awsiam.PolicyStatementProps{
+		Actions:   jsii.Strings("ssm:PutParameter"),
+		Resources: jsii.Strings(fmt.Sprintf("arn:aws:ssm:%s:%s:parameter/smtp/notification/email", *stack.Region(), *stack.Account())),
+	}))
+
+	emailSenderLambda.AddToRolePolicy(awsiam.NewPolicyStatement(&awsiam.PolicyStatementProps{
+		Actions: jsii.Strings("ssm:GetParameter"),
+		Resources: jsii.Strings(
+			fmt.Sprintf("arn:aws:ssm:%s:%s:parameter/smtp/provider/public_key", *stack.Region(), *stack.Account()),
+			fmt.Sprintf("arn:aws:ssm:%s:%s:parameter/smtp/provider/private_key", *stack.Region(), *stack.Account()),
+			fmt.Sprintf("arn:aws:ssm:%s:%s:parameter/smtp/provider/sender", *stack.Region(), *stack.Account()),
+			fmt.Sprintf("arn:aws:ssm:%s:%s:parameter/smtp/notification/email", *stack.Region(), *stack.Account()),
+		),
+	}))
+
+	// triggers
+
+	transactionsBucket.AddEventNotification(awss3.EventType_OBJECT_CREATED, awss3notifications.NewLambdaDestination(filesProcessorLambda))
+
+	emailSenderLambda.AddEventSource(awslambdaeventsources.NewSqsEventSource(reportsQueue, &awslambdaeventsources.SqsEventSourceProps{
+		BatchSize: jsii.Number(1),
+	}))
 
 	return stack
 }
@@ -43,29 +147,6 @@ func main() {
 	app.Synth(nil)
 }
 
-// env determines the AWS environment (account+region) in which our stack is to
-// be deployed. For more information see: https://docs.aws.amazon.com/cdk/latest/guide/environments.html
 func env() *awscdk.Environment {
-	// If unspecified, this stack will be "environment-agnostic".
-	// Account/Region-dependent features and context lookups will not work, but a
-	// single synthesized template can be deployed anywhere.
-	//---------------------------------------------------------------------------
 	return nil
-
-	// Uncomment if you know exactly what account and region you want to deploy
-	// the stack to. This is the recommendation for production stacks.
-	//---------------------------------------------------------------------------
-	// return &awscdk.Environment{
-	//  Account: jsii.String("123456789012"),
-	//  Region:  jsii.String("us-east-1"),
-	// }
-
-	// Uncomment to specialize this stack for the AWS Account and Region that are
-	// implied by the current CLI configuration. This is recommended for dev
-	// stacks.
-	//---------------------------------------------------------------------------
-	// return &awscdk.Environment{
-	//  Account: jsii.String(os.Getenv("CDK_DEFAULT_ACCOUNT")),
-	//  Region:  jsii.String(os.Getenv("CDK_DEFAULT_REGION")),
-	// }
 }
