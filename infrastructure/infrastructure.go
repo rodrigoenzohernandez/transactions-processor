@@ -5,9 +5,11 @@ import (
 
 	"github.com/aws/aws-cdk-go/awscdk/v2"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awsapigateway"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awsec2"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awsiam"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awslambda"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awslambdaeventsources"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awsrds"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awss3"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awss3notifications"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awssqs"
@@ -77,6 +79,30 @@ func addPolicyToLambda(lambdaFunction awslambda.Function, actions []string, reso
 	}))
 }
 
+func createRDSInstance(stack awscdk.Stack, dbName string, instanceIdentifier string) awsrds.DatabaseInstance {
+
+	vpc := awsec2.NewVpc(stack, jsii.String("VPC"), &awsec2.VpcProps{
+		MaxAzs: jsii.Number(2),
+	})
+
+	db := awsrds.NewDatabaseInstance(stack, jsii.String("Instance"), &awsrds.DatabaseInstanceProps{
+		Engine: awsrds.DatabaseInstanceEngine_Postgres(&awsrds.PostgresInstanceEngineProps{
+			Version: awsrds.PostgresEngineVersion_VER_16_3(),
+		}),
+		InstanceType:        awsec2.InstanceType_Of(awsec2.InstanceClass_BURSTABLE3, awsec2.InstanceSize_MICRO),
+		Vpc:                 vpc,
+		DatabaseName:        jsii.String(dbName),
+		InstanceIdentifier:  jsii.String(instanceIdentifier),
+		MaxAllocatedStorage: jsii.Number(200),
+		Credentials: awsrds.Credentials_FromGeneratedSecret(jsii.String("postgres"), &awsrds.CredentialsBaseOptions{
+			SecretName: jsii.String(dbName),
+		}),
+	})
+
+	return db
+
+}
+
 func NewInfrastructureStack(scope constructs.Construct, id string, props *InfrastructureStackProps) awscdk.Stack {
 
 	env := utils.GetEnv("ENV", "develop")
@@ -88,6 +114,7 @@ func NewInfrastructureStack(scope constructs.Construct, id string, props *Infras
 	stack := awscdk.NewStack(scope, &id, &sprops)
 
 	// resources creation
+	createRDSInstance(stack, "transactionsProcessorDB", "db-instance-transactions-processor")
 
 	reportsQueue := createQueue(stack, "reports_queue", 300)
 
