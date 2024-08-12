@@ -142,6 +142,13 @@ func createRDSInstance(stack awscdk.Stack, dbName string, instanceIdentifier str
 
 }
 
+func addSecretsManagerPolicyToLambda(lambdaFunction awslambda.Function, secretArn string) {
+	lambdaFunction.AddToRolePolicy(awsiam.NewPolicyStatement(&awsiam.PolicyStatementProps{
+		Actions:   jsii.Strings("secretsmanager:GetSecretValue"),
+		Resources: jsii.Strings(secretArn),
+	}))
+}
+
 func NewInfrastructureStack(scope constructs.Construct, id string, props *InfrastructureStackProps) awscdk.Stack {
 
 	var sprops awscdk.StackProps
@@ -151,7 +158,7 @@ func NewInfrastructureStack(scope constructs.Construct, id string, props *Infras
 	stack := awscdk.NewStack(scope, &id, &sprops)
 
 	// resources creation
-	createRDSInstance(stack, "transactionsProcessorDB", "instance-db-transactions-processor")
+	db := createRDSInstance(stack, "transactionsProcessorDB", "instance-db-transactions-processor")
 
 	reportsQueue := createQueue(stack, "reports_queue", 300)
 
@@ -195,6 +202,9 @@ func NewInfrastructureStack(scope constructs.Construct, id string, props *Infras
 			awsiam.NewAnyPrincipal(),
 		},
 	}))
+
+	secretArn := db.Secret().SecretArn()
+	addSecretsManagerPolicyToLambda(filesProcessorLambda, *secretArn)
 
 	// triggers
 
