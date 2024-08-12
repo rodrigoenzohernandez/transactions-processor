@@ -25,4 +25,4 @@ go.work.sum
 .env
 bootstrap
 TODO.MD
-.DS_Store
+*.DS_Store
