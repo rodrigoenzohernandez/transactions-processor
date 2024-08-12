@@ -25,7 +25,6 @@ type Secret struct {
 
 func Connect() (*sql.DB, string) {
 	secret, _ := secrets_service.GetSecret("transactionsProcessorDB", "us-east-2")
-
 	var secretData Secret
 	err := json.Unmarshal([]byte(secret), &secretData)
 	if err != nil {
@@ -58,7 +57,7 @@ func Connect() (*sql.DB, string) {
 
 	err = db.Ping()
 	if err != nil {
-		log.Error("Error reaching to the database.")
+		log.Error(fmt.Sprintf("Error reaching to the database %v", err))
 		panic(err)
 	}
 
