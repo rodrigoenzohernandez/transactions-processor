@@ -186,10 +186,6 @@ func NewInfrastructureStack(scope constructs.Construct, id string, props *Infras
 		fmt.Sprintf("arn:aws:ssm:%s:%s:parameter/smtp/notification/email", *stack.Region(), *stack.Account()),
 	})
 
-	// triggers
-
-	transactionsBucket.AddEventNotification(awss3.EventType_OBJECT_CREATED, awss3notifications.NewLambdaDestination(filesProcessorLambda))
-
 	transactionsBucket.GrantPublicAccess(jsii.String("/*"), jsii.String("s3:PutObject"))
 
 	transactionsBucket.AddToResourcePolicy(awsiam.NewPolicyStatement(&awsiam.PolicyStatementProps{
@@ -199,6 +195,10 @@ func NewInfrastructureStack(scope constructs.Construct, id string, props *Infras
 			awsiam.NewAnyPrincipal(),
 		},
 	}))
+
+	// triggers
+
+	transactionsBucket.AddEventNotification(awss3.EventType_OBJECT_CREATED, awss3notifications.NewLambdaDestination(filesProcessorLambda))
 
 	emailSenderLambda.AddEventSource(awslambdaeventsources.NewSqsEventSource(reportsQueue, &awslambdaeventsources.SqsEventSourceProps{
 		BatchSize: jsii.Number(1),
