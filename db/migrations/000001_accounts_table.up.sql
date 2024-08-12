@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS "dev".accounts (
     address VARCHAR(255) NOT NULL
 );
 
-INSERT INTO "dev".accounts (address) VALUES ('0110590920000001234567');
+INSERT INTO "dev".accounts (id, address) VALUES ('697ac68b-3c03-4c65-a8e1-d35e7452ba27', '0110590920000001234567');
 
 
 COMMIT;
