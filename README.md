@@ -10,15 +10,20 @@ Technical challenge for [Stori](https://www.storicard.com/)
 - [The solution](#the-solution)
   - [Built With](#built-with)
   - [Architecture](#architecture)
-    - [References](#references)
+    - [Icons reference](#icons-reference)
     - [Files processing flow](#files-processing-flow)
     - [Update notification email flow](#update-notification-email-flow)
   - [Project structure](#project-structure)
+  - [Email examples](#email-examples)
   - [Assumptions](#assumptions)
     - [Average credit and debit amount](#average-credit-and-debit-amount)
-  - [How to test it?](#how-to-test-it)
-  - [How to deploy it using an AWS Account?](#how-to-deploy-it-using-an-aws-account)
-  - [How to destroy it using an AWS Account?](#how-to-destroy-it-using-an-aws-account)
+    - [Second bonus point: "Save transaction and account info to a database"](#second-bonus-point-save-transaction-and-account-info-to-a-database)
+        - [Account](#account)
+        - [Transactions IDs](#transactions-ids)
+    - [Validations](#validations)
+  - [How to run it?](#how-to-run-it)
+  - [How to deploy it?](#how-to-deploy-it-using-an-aws-account)
+  - [How to destroy it?](#how-to-destroy-it-using-an-aws-account)
 - [Tech debt / Next steps](#tech-debt--next-steps)
   - [Unit tests](#unit-tests)
   - [Linter configuration](#linter-configuration)
@@ -81,8 +86,8 @@ Average credit amount: 35.25
 
 ### Built With
 
-- [Go](https://golang.org/) - The Go Programming Language
-- [PostgreSQL](https://www.postgresql.org/) - Open source object-relational database system
+- [Go](https://golang.org/) - Programming Language
+- [PostgreSQL](https://www.postgresql.org/) - Object-relational database
 - [AWS](https://aws.amazon.com/) - Cloud platform
 - [aws-cdk-go](https://pkg.go.dev/github.com/aws/aws-cdk-go/awscdk/v2#section-readme) - AWS Cloud Development Kit Library
 - [Mailjet](https://dev.mailjet.com/) - SMTP Server Provider
@@ -105,13 +110,15 @@ It's a cloud based solution, so all the resources live in AWS and are created by
 | RDS             | transactionsProcessorDB  | RDS instance that holds a PostgreSQL database where the transactions are stored.              |
 | SSM Parameters  | different parameter      | Stores API keys and sender email for the SMTP provider, also the notification email where the report is sent. |
 
-#### References
+#### Icons reference
 
 Representation of each component involved.
 
 ![Description](docs/arch/references.drawio.png)
 
 #### Files processing flow
+
+![Description](docs/arch/mainArch.drawio.png)
 
 1. A csv file with transactions is uploaded to the S3 bucket called transactions-bucket
 2. The files-processor Lambda:
@@ -127,17 +134,13 @@ Representation of each component involved.
     2.3 Gets the SMTP provider data from the SSM Params (API keys, sender email) and the notification-email (where the reports are sent)
     2.4 Sends the email
 
-
-![Description](docs/arch/mainArch.drawio.png)
-
 #### Update notification email flow
+
+![Description](docs/arch/ssmUpdate.drawio.png)
 
 1. A PUT endpoint of /params is hit
 2. The ssm-params-updater Lambda is triggered
 3. That lambda updates the param for the notification-email 
-
-![Description](docs/arch/ssmUpdate.drawio.png)
-
 
 
 ### Project structure
@@ -160,7 +163,7 @@ Representation of each component involved.
         /sqs:           AWS SQS queues functions
         /ssm:           AWS Systems Manager Parameter Store functions
     /types:         Contains the types used in /internal
-    /utils:         Contameins functions that do not consume external services. Also known as helpers.
+    /utils:         Contains functions that do not consume external services. Also known as helpers.
         /logger:    Contains function abstract from the logging library
         /templates: Contains the html template used for the email content
 /files:             Contains the example transactions file.
@@ -172,14 +175,42 @@ Representation of each component involved.
 - infrastructure Contains infrastructure-related code and configurations.
 ```
 
+### Email examples
+
+#### Computer
+
+<img src="docs/email-example-web.png" alt="Computer screenshot" width="1000"/>
+
+
+#### Phone
+
+<img src="docs/email-example-phone.jpeg" alt="Phone screenshot" width="300"/>
+
 
 ### Assumptions
 
 #### Average credit and debit amount
 
-It's assumed that this amounts are required to be grouped by month.
+It's assumed that the amounts are required to be grouped by month.
 
-### How to test it?
+#### Second bonus point: "Save transaction and account info to a database"
+
+##### Account
+
+To limit scope it's assumed that all the transactions are related to the same account, no matter what notification email is being used. That's why the account is being inserted during the migration, and the account_id hardcoded when the transactions are inserted. In a real world scenario we would have also a Users table related to the Account.
+
+##### Transactions IDs
+
+Since having auto incremented IDs in a database is not a good practice, It's assumed that the IDs of the transactions file are just for that file. For the database an UUID is generated, so we can't relation the transactions in the file to the transactions in the database.
+
+#### Validations
+
+It's assumed that the input csv file will always have the same format as it's shown in the instructions.
+It's also assumed that the notification email stored in the ssm param respects the email format.
+
+
+
+### How to run it?
 
 It can be tested using the already deployed resources in AWS. Step by step guide:
 
@@ -189,11 +220,12 @@ It can be tested using the already deployed resources in AWS. Step by step guide
 make update-email email=rodrigoenzohernandez@gmail.com
 ```
 
-2. Upload a csv file with transactions to the S3 bucket
+2. Upload a csv file with transactions to the public S3 bucket. (You need to have configured your AWS cli with real credentials)
 
 ```
 make run-dev
 ```
+
 
 ### How to deploy it using an AWS Account?
 
@@ -205,11 +237,14 @@ export SMTP_PROVIDER_SENDER=<insert-the-email-used-to-create-your-mailjet-accoun
 export SMTP_NOTIFICATION_EMAIL=<insert-the-email-where-the-report-will-be-sent>
 ```
 
-2. Run the command that builds the lambdas and deploy the resources
+2. Execute this command from the Makefile
 
 ```
 make deploy
 ```
+
+It builds all the lambdas, deploys the infrastructure and runs the up migrations.
+
 
 ### How to destroy it using an AWS Account?
 
@@ -245,7 +280,7 @@ A pipeline to run the tests, build and deploy must be created. The pipeline shou
 
 ### Local testing
 
-For now the solution can only be tested by consuming que deployed version. A docker image with docker compose can be prepared to test the solution locally or [Localstack](https://docs.localstack.cloud/user-guide/integrations/sdks/go/) may be a good option too.
+For now the solution can only be tested by consuming que deployed version. A docker image with docker compose can be prepared to test the solution locally or [LocalStack](https://docs.localstack.cloud/user-guide/integrations/sdks/go/) may be a good option too.
 
 ### Tags
 

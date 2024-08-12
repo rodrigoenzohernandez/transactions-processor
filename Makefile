@@ -4,7 +4,10 @@ build-lambdas:
 		(cd $$dir && GOOS=linux GOARCH=amd64 go build -o bootstrap main.go) || exit 1; \
 	done
 deploy:
-	make build-lambdas && cd infrastructure && cdk deploy --require-approval never
+	make build-lambdas
+	cd infrastructure && cdk deploy --require-approval never
+	make migrate-up
+
 destroy:
 	cd infrastructure && cdk destroy --force
 diff:
@@ -21,3 +24,9 @@ update-email:
 	curl -X PUT https://41slfl71z8.execute-api.us-east-2.amazonaws.com/develop/param \
 		-H "Content-Type: application/json" \
 		-d '{"notificationEmail": "$(email)"}'
+
+migrate-up:
+	go run db/scripts/migrate.go up
+
+migrate-down:
+	go run db/scripts/migrate.go down

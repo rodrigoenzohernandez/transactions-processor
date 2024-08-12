@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/rodrigoenzohernandez/transactions-processor/internal/repository"
 	"github.com/rodrigoenzohernandez/transactions-processor/internal/services"
 	ssm_services "github.com/rodrigoenzohernandez/transactions-processor/internal/services/ssm"
 	"github.com/rodrigoenzohernandez/transactions-processor/internal/utils"
@@ -16,6 +17,15 @@ func main() {
 
 	records, err := utils.GetRecordsFromBuffer(buffer)
 	if err != nil {
+		return
+	}
+
+	db, _ := repository.Connect()
+
+	transactionsRepo := repository.NewTransactionRepo(db)
+
+	e := transactionsRepo.InsertMany(records)
+	if e != nil {
 		return
 	}
 

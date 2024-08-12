@@ -1,0 +1,15 @@
+BEGIN;
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+CREATE SCHEMA IF NOT EXISTS "dev";
+
+CREATE TABLE IF NOT EXISTS "dev".accounts (
+    id     UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    address VARCHAR(255) NOT NULL
+);
+
+INSERT INTO "dev".accounts (id, address) VALUES ('697ac68b-3c03-4c65-a8e1-d35e7452ba27', '0110590920000001234567');
+
+
+COMMIT;
