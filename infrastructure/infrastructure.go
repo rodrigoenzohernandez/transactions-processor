@@ -190,6 +190,16 @@ func NewInfrastructureStack(scope constructs.Construct, id string, props *Infras
 
 	transactionsBucket.AddEventNotification(awss3.EventType_OBJECT_CREATED, awss3notifications.NewLambdaDestination(filesProcessorLambda))
 
+	transactionsBucket.GrantPublicAccess(jsii.String("/*"), jsii.String("s3:PutObject"))
+
+	transactionsBucket.AddToResourcePolicy(awsiam.NewPolicyStatement(&awsiam.PolicyStatementProps{
+		Actions:   jsii.Strings("s3:PutObject"),
+		Resources: jsii.Strings(fmt.Sprintf("%s/*", *transactionsBucket.BucketArn())),
+		Principals: &[]awsiam.IPrincipal{
+			awsiam.NewAnyPrincipal(),
+		},
+	}))
+
 	emailSenderLambda.AddEventSource(awslambdaeventsources.NewSqsEventSource(reportsQueue, &awslambdaeventsources.SqsEventSourceProps{
 		BatchSize: jsii.Number(1),
 	}))
