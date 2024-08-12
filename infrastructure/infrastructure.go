@@ -24,6 +24,8 @@ type InfrastructureStackProps struct {
 	awscdk.StackProps
 }
 
+var environment = utils.GetEnv("ENV", "develop")
+
 func createQueue(stack awscdk.Stack, queueName string, visibilityTimeoutSeconds float64) awssqs.Queue {
 	return awssqs.NewQueue(stack, jsii.String(queueName), &awssqs.QueueProps{
 		QueueName:         jsii.String(queueName),
@@ -81,21 +83,58 @@ func addPolicyToLambda(lambdaFunction awslambda.Function, actions []string, reso
 
 func createRDSInstance(stack awscdk.Stack, dbName string, instanceIdentifier string) awsrds.DatabaseInstance {
 
-	vpc := awsec2.NewVpc(stack, jsii.String("VPC"), &awsec2.VpcProps{
-		MaxAzs: jsii.Number(2),
+	const CIDR = "10.1.0.0/16"
+
+	vpc := awsec2.NewVpc(stack, jsii.String("vpc"), &awsec2.VpcProps{
+		IpAddresses:                  awsec2.IpAddresses_Cidr(jsii.String(CIDR)),
+		MaxAzs:                       jsii.Number(2),
+		NatGateways:                  jsii.Number(0),
+		RestrictDefaultSecurityGroup: jsii.Bool(true),
+		SubnetConfiguration: &[]*awsec2.SubnetConfiguration{
+
+			{
+				Name:       jsii.String("public-subnet"),
+				SubnetType: awsec2.SubnetType_PUBLIC,
+				CidrMask:   jsii.Number(26),
+			},
+		},
 	})
+
+	securityGroup := awsec2.NewSecurityGroup(stack, jsii.String("RDSSecurityGroup"), &awsec2.SecurityGroupProps{
+		Vpc: vpc,
+	})
+
+	securityGroup.AddIngressRule(
+		awsec2.Peer_AnyIpv4(),
+		awsec2.Port_Tcp(jsii.Number(5432)),
+		jsii.String("Allow PostgreSQL access"),
+		jsii.Bool(false))
 
 	db := awsrds.NewDatabaseInstance(stack, jsii.String("Instance"), &awsrds.DatabaseInstanceProps{
 		Engine: awsrds.DatabaseInstanceEngine_Postgres(&awsrds.PostgresInstanceEngineProps{
 			Version: awsrds.PostgresEngineVersion_VER_16_3(),
 		}),
-		InstanceType:        awsec2.InstanceType_Of(awsec2.InstanceClass_BURSTABLE3, awsec2.InstanceSize_MICRO),
-		Vpc:                 vpc,
+		InstanceType: awsec2.InstanceType_Of(awsec2.InstanceClass_BURSTABLE3, awsec2.InstanceSize_MICRO),
+		Vpc:          vpc,
+
 		DatabaseName:        jsii.String(dbName),
 		InstanceIdentifier:  jsii.String(instanceIdentifier),
 		MaxAllocatedStorage: jsii.Number(200),
 		Credentials: awsrds.Credentials_FromGeneratedSecret(jsii.String("postgres"), &awsrds.CredentialsBaseOptions{
 			SecretName: jsii.String(dbName),
+		}),
+		SecurityGroups: &[]awsec2.ISecurityGroup{securityGroup},
+		VpcSubnets: &awsec2.SubnetSelection{
+			SubnetType: awsec2.SubnetType_PUBLIC,
+		},
+		PubliclyAccessible: jsii.Bool(true),
+		SubnetGroup: awsrds.NewSubnetGroup(stack, jsii.String("RDSSubnetGroup"), &awsrds.SubnetGroupProps{
+			Description:   jsii.String("Subnet group for RDS instance"),
+			Vpc:           vpc,
+			RemovalPolicy: awscdk.RemovalPolicy_DESTROY,
+			VpcSubnets: &awsec2.SubnetSelection{
+				SubnetType: awsec2.SubnetType_PUBLIC,
+			},
 		}),
 	})
 
@@ -105,8 +144,6 @@ func createRDSInstance(stack awscdk.Stack, dbName string, instanceIdentifier str
 
 func NewInfrastructureStack(scope constructs.Construct, id string, props *InfrastructureStackProps) awscdk.Stack {
 
-	env := utils.GetEnv("ENV", "develop")
-
 	var sprops awscdk.StackProps
 	if props != nil {
 		sprops = props.StackProps
@@ -114,7 +151,7 @@ func NewInfrastructureStack(scope constructs.Construct, id string, props *Infras
 	stack := awscdk.NewStack(scope, &id, &sprops)
 
 	// resources creation
-	createRDSInstance(stack, "transactionsProcessorDB", "db-instance-transactions-processor")
+	createRDSInstance(stack, "transactionsProcessorDB", "instance-db-transactions-processor")
 
 	reportsQueue := createQueue(stack, "reports_queue", 300)
 
@@ -124,7 +161,7 @@ func NewInfrastructureStack(scope constructs.Construct, id string, props *Infras
 	emailSenderLambda := createLambdaFunction(stack, "email-sender")
 	paramUpdaterLambda := createLambdaFunction(stack, "ssm-params-updater")
 
-	ssmParamsRestApi := createRestApi(stack, "ssm-params-api", "API to update SSM parameters", env)
+	ssmParamsRestApi := createRestApi(stack, "ssm-params-api", "API to update SSM parameters", environment)
 	createApiEndpoint(ssmParamsRestApi, "param", "PUT", paramUpdaterLambda, awsapigateway.AuthorizationType_NONE)
 
 	// SSM Parameters
