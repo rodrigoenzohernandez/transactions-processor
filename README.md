@@ -14,6 +14,7 @@ Technical challenge for [Stori](https://www.storicard.com/)
     - [Files processing flow](#files-processing-flow)
     - [Update notification email flow](#update-notification-email-flow)
   - [Project structure](#project-structure)
+  - [Video demo](#demo)
   - [Email examples](#email-examples)
   - [Assumptions](#assumptions)
     - [Average credit and debit amount](#average-credit-and-debit-amount)
@@ -177,9 +178,8 @@ Representation of each component involved.
 
 ### Demo
 
-[Link to Youtube](https://www.youtube.com/watch?v=ekFnadX1t_Q)
+[Link to YouTube](https://www.youtube.com/watch?v=ekFnadX1t_Q)
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/ekFnadX1t_Q" frameborder="0" allowfullscreen></iframe>
 
 ### Email examples
 
